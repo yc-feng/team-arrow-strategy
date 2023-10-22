@@ -1,0 +1,242 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather Monitor</title>
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+      function fetchLocation() {
+          const successCallback = (position) => {
+              console.log(position);
+
+              // Populate the input fields with the latitude and longitude
+              document.getElementById('latitude').value = position.coords.latitude;
+              document.getElementById('longitude').value = position.coords.longitude;
+          };
+
+          const errorCallback = (error) => {
+              console.log(error);
+              alert('Geolocation is not supported by this browser.');       
+          };
+
+          navigator.geolocation.getCurrentPosition(successCallback, errorCallback);
+
+          alert('This is based on Navigator.geolocation, accuracy may vary based on device and conditions.');
+      }
+      function fetchIPGeolocation() {
+          // Make a request to the GeoPlugin API
+          fetch('https://api.ipgeolocation.io/ipgeo?apiKey=API_KEY')
+          .then(response => response.json())
+          .then(data => {
+              // Extract latitude and longitude from the response and populate the input fields
+              document.getElementById('latitude').value = data.latitude;
+              document.getElementById('longitude').value = data.longitude;
+          })
+          .catch(error => {
+              console.error('There was an error fetching the location:', error);
+          });
+          alert('This is IP geolocation, may not locality 100% accuracy');
+
+      }
+
+    </script>
+    <style>
+        #current-speed {
+            font-size: 24px;
+            font-family: 'monospace';
+            color: #333;
+        }
+        canvas {
+            max-height: 400px;
+            width: 100%;
+        }
+        #logo {
+            max-height: 60px;  
+            margin-right: 15px;  
+            margin-top: 15px; 
+        }
+        #header-title {
+            font-size: 36px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row align-items-center mb-4">
+            <div class="col-4 text-left">
+                <img id="logo" src="https://www.teamarrow.com.au/wp-content/uploads/2021/06/team-arrow-racing-white-bg-logo.svg" alt="Logo">
+            </div>
+            <div class="col-8 text-left">
+                <span id="header-title">Weather Monitor</span>
+            </div>
+        </div>
+        <form action="/refresh" method="post" onsubmit="return validateForm()">
+
+            <label for="latitude">Current Latitude:</label>
+            <input type="text" id="latitude" name="latitude" placeholder="Enter Latitude">
+
+            <label for="longitude">Longitude:</label>
+            <input type="text" id="longitude" name="longitude" placeholder="Enter Longitude">
+            <input type="button" value="Get Location" onclick="fetchLocation()">
+
+            <label for="speed">Current Speed:</label>
+            <input type="text" id="speed" name="speed" placeholder="Enter Speed (km/h)">
+
+            <button type="submit">Refresh</button>
+        </form>
+
+    <div class="container-fluid mt-4">
+        <div class="row">
+            <div class="col-lg-9" id="map-container">
+              {{ map_content | safe }}
+            </div>
+            <div class="col-lg-3" id="chart-container">
+                <h5 class="text-center mb-2">Current Speed:</h5>
+                <div id="current-speed" class="text-center mb-4">
+                    <span style="font-family: monospace; font-size: 28px;">{{ speed }} km/hr</span>
+                </div>
+                <canvas id="cloudChart"></canvas>
+                <canvas id="irradianceChart" class="mt-4"></canvas>
+                <div style="display:none;">
+                    <img id="arrowicon" width="24" height="24" src="https://img.icons8.com/fluency/48/long-arrow-down.png" alt="long-arrow-down"/>
+                </div>
+                <canvas id="windChart" class="mt-4"></canvas>
+            </div>
+        </div>
+    </div>
+    <script>
+
+      function validateForm() {
+          var latitude = document.getElementById("latitude").value;
+          var longitude = document.getElementById("longitude").value;
+          var speed = document.getElementById("speed").value;
+
+          if (!isValidNumber(latitude) || !isValidNumber(longitude) || !isValidNumber(speed)) {
+              alert("Please enter valid numbers for all fields.");
+              return false;
+          }
+          return true;
+      }
+
+      function isValidNumber(str) {
+          var value = parseFloat(str);
+          return !isNaN(value);
+      }
+
+        var ctx = document.getElementById('cloudChart').getContext('2d');
+        var cloudChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+              labels: {{ time_labels | safe }},
+              datasets: [{
+                  label: 'Cloud Cover (%)',
+                  data: {{ cloud_cover_data }},
+                  borderColor: 'rgba(75, 192, 192, 1)',
+                  borderWidth: 1,
+                  fill: false
+                }]
+            },
+            options: {
+                scales: {
+                    x: {
+                        beginAtZero: true
+                    },
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+        var ctxIrradiance = document.getElementById('irradianceChart').getContext('2d');
+        var irradianceChart = new Chart(ctxIrradiance, {
+            type: 'line',
+            data: {
+            labels: {{ time_labels | safe }},
+            datasets: [{
+                label: 'Irradiance (W/m²)',
+                data: {{ irradiance_data }},
+                borderColor: 'rgba(255, 206, 86, 1)',
+                borderWidth: 1,
+                fill: false
+            }]
+            },
+            options: {
+                scales: {
+                    x: {
+                        beginAtZero: true
+                    },
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+
+        var image = document.getElementById('arrowicon');
+        // customise point style
+        const wind_data = {
+            values: {
+                speed: {{wind_speed_data}},
+                direction: {{wind_direction_data}}
+            }
+        };
+
+        const data = {
+            labels: {{ time_labels | safe }},
+            datasets: [
+                {
+                    label: 'Wind Speed (m/s) and direction',
+                    data: wind_data.values.speed,
+                    fill: false,
+                    borderWidth: 1,
+                    pointStyle: image,
+                    pointRotation: wind_data.values.direction // Array of wind direction values
+                },
+            ]
+        };
+        const config = {
+            type: 'line',
+            data: data,
+            options: {
+                plugins: {
+                    legend: {
+                        labels: {
+                            usePointStyle: false,
+                        },
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                var labels = [];
+                                var speedLabel = 'Wind Speed';
+
+                                if (speedLabel) {
+                                    speedLabel += ': ';
+                                }
+
+                                if (context.parsed.y !== null) {
+                                    speedLabel += context.parsed.y.toFixed(2) + ' m/s';
+                                }
+
+                                labels.push(speedLabel);
+
+                                // Add wind direction to the tooltip on a new line
+                                var directionLabel = 'Direction: ' + wind_data.values.direction[context.dataIndex] + '°';
+                                labels.push(directionLabel);
+
+                                return labels;
+                            }
+                        }
+                    }
+                }
+            }
+        };
+        var ctxWind = document.getElementById('windChart').getContext('2d');
+        var windChart = new Chart(ctxWind, config);
+    </script>
+</body>
+</html>

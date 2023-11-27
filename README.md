@@ -13,7 +13,9 @@ The Weather Monitor is a web application that provides real-time weather forecas
 - Backend: Flask
 - Frontend: HTML, CSS, JavaScript, and Bootstrap
 - Data Visualization: Chart.js and Folium
-- Data Source: Solcast API
+<del>- Data Source: Solcast API<del>
+27/11/2023 update:
+- Data Source: Tomorrow.io API
 
 ### Usage
 1. Home Page:

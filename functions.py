@@ -8,11 +8,12 @@ from datetime import datetime, timedelta
 import math
 import pytz
 from solcast import forecast
+import os
 
 
 # time: datetime
 # timesteps: minutely/ hourly
-def get_weather_forecast_hourly(latitude, longitude, time, timesteps, API_KEY):
+def get_weather_forecast_hourly(latitude, longitude, time, timesteps):
   """
     Fetches hourly weather forecast data for a given latitude and longitude.
 
@@ -27,6 +28,8 @@ def get_weather_forecast_hourly(latitude, longitude, time, timesteps, API_KEY):
         dict: A dictionary containing the forecasted weather details for the specified time.
     """
   BASE_URL = 'https://api.tomorrow.io/v4/weather/forecast'
+  API_KEY = os.environ['TOMORROW_API_KEY']
+
 
   # Prepare request parameters
   params = {
@@ -47,13 +50,13 @@ def get_weather_forecast_hourly(latitude, longitude, time, timesteps, API_KEY):
           or timesteps == 'hourly') and hour_time > time:
         return {
             'Time': hour_time,
-            'Temperature (°C)': hour['values']['temperature'],
-            'Cloud Cover (%)': hour['values']['cloudCover'],
+            'air_temp': hour['values']['temperature'],
+            'cloud_opacity': hour['values']['cloudCover'],
             'UV Index': hour['values']['uvIndex'],
             'Visibility': hour['values']['visibility'],
             'Weather Code': hour['values']['weatherCode'],
-            'Wind Speed (m/s)': hour['values']['windSpeed'],
-            'Wind Direction': hour['values']['windDirection']
+            'wind_speed_10m': hour['values']['windSpeed'],
+            'wind_direction_10m': hour['values']['windDirection']
         }
   else:
     print(
@@ -61,7 +64,7 @@ def get_weather_forecast_hourly(latitude, longitude, time, timesteps, API_KEY):
     )
     return None
 
-
+# api key expired
 def get_weather_forecast(latitude, longitude, time):
 
   df = forecast.radiation_and_weather(latitude=latitude,
@@ -228,9 +231,6 @@ def get_weather_popup(weather_dic, head=True, current_speed=0):
                                     {current_speed_text}
                                     Temperature: {weather_dic['air_temp']} °C<br>
                                     Cloud Cover: {weather_dic['cloud_opacity']} %<br>
-                                    DHI: {weather_dic['dni']} W/m2<br>
-                                    GHI: {weather_dic['ghi']} W/m2<br>
-                                    GTI: {weather_dic['gti']} W/m2<br>
                                     Wind Speed (m/s): {weather_dic['wind_speed_10m']} m/s<br>
                                     Wind Direction: {weather_dic['wind_direction_10m']} </font>'''
                          )
@@ -267,10 +267,10 @@ def get_map(start_lat=-12.466296, start_lon=130.843145, current_speed=0):
   selected_indices = get_selected_indices(nearest_point, path_df,
                                           current_speed)
 
-  #weather_dic = get_weather_forecast_hourly(nearest_point['Latitude'], nearest_point['Longitude'], datetime.utcnow(), 'minutely', tomorrow_key)
-  weather_dic = get_weather_forecast(nearest_point['Latitude'],
-                                     nearest_point['Longitude'],
-                                     datetime.utcnow())
+  weather_dic = get_weather_forecast_hourly(nearest_point['Latitude'], nearest_point['Longitude'], datetime.utcnow(), 'minutely')
+  #weather_dic = get_weather_forecast(nearest_point['Latitude'],
+                                     #nearest_point['Longitude'],
+                                     #datetime.utcnow())
 
   # keep the weather data for visualization
   weather_df = pd.DataFrame(weather_dic, index=[0])
@@ -289,9 +289,9 @@ def get_map(start_lat=-12.466296, start_lon=130.843145, current_speed=0):
       break
     lat, lon = path_df.iloc[idx]['Latitude'], path_df.iloc[idx]['Longitude']
 
-    weather_dic = get_weather_forecast(
+    weather_dic = get_weather_forecast_hourly(
         lat, lon,
-        datetime.utcnow() + timedelta(hours=count + 1))
+        datetime.utcnow() + timedelta(hours=count + 1), 'hourly')
 
     weather_df = pd.concat(
         [weather_df, pd.DataFrame(weather_dic, index=[0])],
@@ -310,7 +310,8 @@ def get_map(start_lat=-12.466296, start_lon=130.843145, current_speed=0):
   # Extract time and speed data
   time_labels = [t.strftime('%H:%M:%S') for t in weather_df['Time'].dt.time]
   cloud_cover_data = weather_df['cloud_opacity'].tolist()
-  irradiance_data = weather_df['gti'].tolist()
+  # solcast api expired
+  irradiance_data = []#weather_df['gti'].tolist()
   wind_speed_data = weather_df['wind_speed_10m'].tolist()
   wind_direction_data = weather_df['wind_direction_10m'].tolist()
 

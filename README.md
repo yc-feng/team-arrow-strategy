@@ -1,5 +1,6 @@
 # TeamArrow strategy team
-This project was built for TeamArrow to make strategy decisions during the **World Solar Challenge**. 
+This project was built for TeamArrow to make strategy decisions during the **World Solar Challenge**. <br>
+https://replit.com/@yc-feng/team-arrow-strategy
 
 ## Weather Monitor Web Application
 The Weather Monitor is a web application that provides real-time weather forecasts tailored for solar racing car strategies. Utilising both user-inputted geolocation and automatically fetched geolocation data, this application visualizes hourly weather forecasts on an interactive map.
